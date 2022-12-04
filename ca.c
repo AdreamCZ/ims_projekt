@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #define WIDTH 80 // Size of window
 #define HEIGHT 80
@@ -11,6 +12,7 @@ typedef enum { empty, sand, water , wall } TYPE;
 
 typedef struct cell{
     TYPE type;
+    bool isUnderPressure;
 }Cell;
 
 Cell buf1[HEIGHT][WIDTH];
@@ -20,39 +22,115 @@ int frame = 0;
 
 int printMessage = 0;
 
+int grainCount = 0;
+
 void ProcessSand(int x, int y){
-    if( y+1 >= HEIGHT ) return; // has nowhere to fall
-    if(buf1[y+1][x].type == empty){ // Falling straight down
-        if(x+1 >= WIDTH || buf1[y][x+1].type != sand ){ 
-            buf2[y][x].type = empty;
-            buf2[y+1][x].type = sand;
-        }else if(x-1 < 0 || buf1[y][x-1].type != sand){ 
-            buf2[y][x].type = empty;
-            buf2[y+1][x].type = sand;
-        }else if(x-1 >= 0 && x+1 < WIDTH && buf1[y][x-1].type == sand && buf1[y][x+1].type == sand){ // Friction on both sides
-            if(rand()%100 > FRICTION){
+    if( y+1 < HEIGHT ) // can fall
+    {
+        if(buf1[y+1][x].type == empty){ // Falling straight down
+            if(x+1 >= WIDTH || buf1[y][x+1].type != sand ){
                 buf2[y][x].type = empty;
                 buf2[y+1][x].type = sand;
+            }else if(x-1 < 0 || buf1[y][x-1].type != sand){
+                buf2[y][x].type = empty;
+                buf2[y+1][x].type = sand;
+            }else if(x-1 >= 0 && x+1 < WIDTH && buf1[y][x-1].type == sand && buf1[y][x+1].type == sand){ // Friction on both sides
+                if(rand()%100 > FRICTION){
+                    buf2[y][x].type = empty;
+                    buf2[y+1][x].type = sand;
+                }
             }
-        }
-    }else if(buf1[y+1][x].type == sand){ // Tumbling from a grain of sand sideways
-        if(rand()%100 <= 50){ // Randomness to which side the sand will fall
+        }else if(buf1[y+1][x].type == sand || buf1[y+1][x].type == wall){ // Tumbling sideways
+            bool rightPossible = false;
+            bool leftPossible = false;
+            if(x-1 >= 0 && buf1[y][x-1].type == empty && buf1[y+1][x-1].type == empty){
+                leftPossible = true;
+            }
+            if(leftPossible && x-2 >=0 && buf1[y][x-2].type == sand && (buf1[y+1][x-2].type == sand || buf1[y+1][x-2].type == wall)){
+                // Another grain can tumble to the same spot on the left
+                leftPossible = false;
+            }
             if(x+1 < WIDTH && buf1[y][x+1].type == empty && buf1[y+1][x+1].type == empty){
+                rightPossible = true;
+            }
+            if(rightPossible && x+2 < WIDTH && buf1[y][x+2].type == sand && (buf1[y+1][x+2].type == sand || buf1[y+1][x+2].type == wall)){
+                // Another grain can tumble to the same spot on the right
+                rightPossible = false;
+            }
+
+            if(rightPossible && leftPossible){
+                //rand
+                if(rand()%100 <= 50){
+                    buf2[y][x].type = empty;
+                    buf2[y+1][x+1].type = sand;
+                }else{
+                    buf2[y][x].type = empty;
+                    buf2[y+1][x-1].type = sand;
+                }
+            }else if(rightPossible){
                 buf2[y][x].type = empty;
                 buf2[y+1][x+1].type = sand;
-            }else if(x-1 > 0 && buf1[y][x-1].type == empty && buf1[y+1][x-1].type == empty ){
+            }else if(leftPossible){
                 buf2[y][x].type = empty;
                 buf2[y+1][x-1].type = sand;
             }
+            // If it is not 100% safe to tumble to the left or right, the grain will not tumble
+            /*
+            if(x+1 < WIDTH && buf1[y][x+1].type == empty && buf1[y+1][x+1].type == empty &&){
+                // can go to the left or to the right -> randomly choose
+            }else if( (x+2 < WIDTH && (buf1[y+1][x+2].type == sand || buf1[y+1][x+2].type == wall) && buf1[y][x+2].type == sand) &&
+                (x-2 < 0 || buf1[y+1][x-2].type != sand && buf1[y+1][x-2].type != wall) || buf1[y][x-2].type != sand){
+                //tumble to the left (cant go right another one can tumble there)
+            }else if((x-2 >= 0 && (buf1[y+1][x-2].type == sand || buf1[y+1][x-2].type == wall) && buf1[y][x-2].type == sand) &&
+                    (x+2 >= WIDTH || buf1[y+1][x+2].type != sand && buf1[y+1][x+2].type != wall) || buf1[y][x+2].type != sand){
+                // tumble to the right
+            }else if((x-2 >= 0 && (buf1[y+1][x-2].type == sand || buf1[y+1][x-2].type == wall) && buf1[y][x-2].type == sand) &&
+                    (x+2 >= WIDTH || buf1[y+1][x+2].type != sand && buf1[y+1][x+2].type != wall) || buf1[y][x+2].type != sand))
+
+            if(rand()%100 <= 50){ // Randomness to which side the sand will fall
+                if(x+1 < WIDTH && buf1[y][x+1].type == empty && buf1[y+1][x+1].type == empty){
+                    buf2[y][x].type = empty;
+                    buf2[y+1][x+1].type = sand;
+                }else if(x-1 > 0 && buf1[y][x-1].type == empty && buf1[y+1][x-1].type == empty ){
+                    buf2[y][x].type = empty;
+                    buf2[y+1][x-1].type = sand;
+                }
+            }else{
+                if(x-1 > 0 && buf1[y][x-1].type == empty && buf1[y+1][x-1].type == empty ){
+                    buf2[y][x].type = empty;
+                    buf2[y+1][x-1].type = sand;
+                }else if(x+1 < WIDTH && buf1[y][x+1].type == empty && buf1[y+1][x+1].type == empty){
+                    buf2[y][x].type = empty;
+                    buf2[y+1][x+1].type = sand;
+                }
+            }
+            */
+        }
+    }
+    if(buf2[x][y].type == sand){ // Didn't fall
+    // Pressure -> if there is a grain above and room to the side the grain will be pushed to the side
+        if(y == 48 && x == 46){ // y x 34 33
+            y = 34;
+        }
+        if(y-1 >= 0 && buf1[y-1][x].type == sand)
+        {
+            buf2[x][y].isUnderPressure = true;
         }else{
-            if(x-1 > 0 && buf1[y][x-1].type == empty && buf1[y+1][x-1].type == empty ){
+            buf2[x][y].isUnderPressure = false;
+        }
+        if(buf2[x][y].isUnderPressure ||
+          (x-1 >= 0 && buf1[y][x-1].isUnderPressure) ||
+          (x+1 < WIDTH && buf1[y][x+1].isUnderPressure))
+        {
+            if(buf1[y][x+1].type != sand && buf1[y][x+1].type != wall){
                 buf2[y][x].type = empty;
-                buf2[y+1][x-1].type = sand;
-            }else if(x+1 < WIDTH && buf1[y][x+1].type == empty && buf1[y+1][x+1].type == empty){
+                buf2[y][x+1].type = sand;
+            }else if(buf1[y][x-1].type != sand && buf1[y][x-1].type != wall){
                 buf2[y][x].type = empty;
-                buf2[y+1][x+1].type = sand;
+                buf2[y][x-1].type = sand;
             }
         }
+
     }
 }
 
@@ -60,12 +138,14 @@ void ProcessSand(int x, int y){
 void Process(){
    // printf("Frame %d \n",frame);
     //memset(buf2, 0, sizeof(buf2))
+    grainCount=0;
     memcpy(buf2,buf1,sizeof(buf1));
     for(int x = 0; x < WIDTH; x++){
         for(int y = 0; y < HEIGHT; y++){
             switch(buf1[y][x].type){
                 case sand:
                     ProcessSand(x,y);
+                    grainCount++;
                 break;
                 case water:
                     if(buf2[y+1][x].type == empty){
@@ -154,7 +234,7 @@ void PlatformsBuild(){
             buf1[2 * (HEIGHT / 3)][i].type = wall;
         }
     }
-    
+
     buf1[2 * (HEIGHT / 3) - 1 ][WIDTH-(WIDTH/5)].type = wall;
     buf1[2 * (HEIGHT / 3) - 2 ][WIDTH-(WIDTH/5)].type = wall;
 }
@@ -164,7 +244,7 @@ void PlatformsTick(){
         if(frame < 700)
             buf1[0][WIDTH/4].type = sand;
         if(frame > 400 & frame < 800)
-            buf1[0][WIDTH-(WIDTH/7)].type = sand;    
+            buf1[0][WIDTH-(WIDTH/7)].type = sand;
     }
     /*
     if(frame % 1 == 0){
@@ -194,7 +274,7 @@ void HourglassBuild(){
         y++;
     }
     // middle tunnel
-    int endOfTunel = HEIGHT - y;
+    int endOfTunel = HEIGHT - y; //47 47
     int startOfTunel = y;
     for(;y < endOfTunel; y++){
         buf1[y][x].type = wall;
@@ -207,20 +287,34 @@ void HourglassBuild(){
     }
     //sand
     int xOffset = 2;
-    for(int y = 1; y < startOfTunel; y++){   
+    for(int y = 1; y < startOfTunel; y++){
         for(int x = xOffset; x < WIDTH - xOffset; x++){
             buf1[y][x].type = sand;
         }
         xOffset++;
     }
-    
+
 }
 
 void HourglassTick(){
 
 }
+/*
+void TestBuild(){
+    buf1[HEIGHT-1][0].type = sand;
+    buf1[HEIGHT-2][0].type = sand;
+    buf1[HEIGHT-2][1].type = wall;
+}
+*/
+void TestBuild(){
+    for(int y = 10; y <=30; y++){
+        for(int x = 10; x <= 30; x++){
+            buf1[y][x].type = sand;
+        }
+    }
+}
 
-typedef enum {platforms, hourglass} worldtype;
+typedef enum {platforms, hourglass, test} worldtype;
 
 int main(int argc, char **argv){
 
@@ -229,9 +323,13 @@ int main(int argc, char **argv){
     if(argc > 1){
         if(strcmp(argv[1], "hourglass") == 0){
             type = hourglass;
+        }else if(strcmp(argv[1],"test") == 0){
+            type = test;
+        }else if(strcmp(argv[1],"platforms") == 0){
+            type = platforms;
         }
     }
-    
+
     switch(type){
         case platforms:
             PlatformsBuild();
@@ -239,32 +337,30 @@ int main(int argc, char **argv){
         case hourglass:
             HourglassBuild();
         break;
-        default:
-            PlatformsBuild();
+        case test:
+            TestBuild();
         break;
     }
-    
+
 
     while(1){
-        
+
         switch(type){
+            break;
             case platforms:
                 PlatformsTick();
             break;
             case hourglass:
                 HourglassTick();
             break;
-            default:
-                PlatformsTick();
-            break;
         }
-        
+
         frame++;
         Draw();
         usleep(30000);
         Process();
-        if(printMessage == 1){
-            printf("\n went left \n");
+        if(1){
+            printf("\n%d\n",grainCount);
             //printMessage = 0;
         }
     }
