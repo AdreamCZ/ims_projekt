@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define WIDTH 80 // Size of window
-#define HEIGHT 80
+#define WIDTH 100 // Size of window
+#define HEIGHT 100
 #define FRICTION 30 // probability that sand will not fall into an empty cell underneath, when surrounded by sand on both sides ( in percents )
 
 typedef enum { empty, sand, water , wall } TYPE;
@@ -74,63 +74,7 @@ void ProcessSand(int x, int y){
                 buf2[y][x].type = empty;
                 buf2[y+1][x-1].type = sand;
             }
-            // If it is not 100% safe to tumble to the left or right, the grain will not tumble
-            /*
-            if(x+1 < WIDTH && buf1[y][x+1].type == empty && buf1[y+1][x+1].type == empty &&){
-                // can go to the left or to the right -> randomly choose
-            }else if( (x+2 < WIDTH && (buf1[y+1][x+2].type == sand || buf1[y+1][x+2].type == wall) && buf1[y][x+2].type == sand) &&
-                (x-2 < 0 || buf1[y+1][x-2].type != sand && buf1[y+1][x-2].type != wall) || buf1[y][x-2].type != sand){
-                //tumble to the left (cant go right another one can tumble there)
-            }else if((x-2 >= 0 && (buf1[y+1][x-2].type == sand || buf1[y+1][x-2].type == wall) && buf1[y][x-2].type == sand) &&
-                    (x+2 >= WIDTH || buf1[y+1][x+2].type != sand && buf1[y+1][x+2].type != wall) || buf1[y][x+2].type != sand){
-                // tumble to the right
-            }else if((x-2 >= 0 && (buf1[y+1][x-2].type == sand || buf1[y+1][x-2].type == wall) && buf1[y][x-2].type == sand) &&
-                    (x+2 >= WIDTH || buf1[y+1][x+2].type != sand && buf1[y+1][x+2].type != wall) || buf1[y][x+2].type != sand))
-
-            if(rand()%100 <= 50){ // Randomness to which side the sand will fall
-                if(x+1 < WIDTH && buf1[y][x+1].type == empty && buf1[y+1][x+1].type == empty){
-                    buf2[y][x].type = empty;
-                    buf2[y+1][x+1].type = sand;
-                }else if(x-1 > 0 && buf1[y][x-1].type == empty && buf1[y+1][x-1].type == empty ){
-                    buf2[y][x].type = empty;
-                    buf2[y+1][x-1].type = sand;
-                }
-            }else{
-                if(x-1 > 0 && buf1[y][x-1].type == empty && buf1[y+1][x-1].type == empty ){
-                    buf2[y][x].type = empty;
-                    buf2[y+1][x-1].type = sand;
-                }else if(x+1 < WIDTH && buf1[y][x+1].type == empty && buf1[y+1][x+1].type == empty){
-                    buf2[y][x].type = empty;
-                    buf2[y+1][x+1].type = sand;
-                }
-            }
-            */
         }
-    }
-    if(buf2[x][y].type == sand){ // Didn't fall
-    // Pressure -> if there is a grain above and room to the side the grain will be pushed to the side
-        if(y == 48 && x == 46){ // y x 34 33
-            y = 34;
-        }
-        if(y-1 >= 0 && buf1[y-1][x].type == sand)
-        {
-            buf2[x][y].isUnderPressure = true;
-        }else{
-            buf2[x][y].isUnderPressure = false;
-        }
-        if(buf2[x][y].isUnderPressure ||
-          (x-1 >= 0 && buf1[y][x-1].isUnderPressure) ||
-          (x+1 < WIDTH && buf1[y][x+1].isUnderPressure))
-        {
-            if(buf1[y][x+1].type != sand && buf1[y][x+1].type != wall){
-                buf2[y][x].type = empty;
-                buf2[y][x+1].type = sand;
-            }else if(buf1[y][x-1].type != sand && buf1[y][x-1].type != wall){
-                buf2[y][x].type = empty;
-                buf2[y][x-1].type = sand;
-            }
-        }
-
     }
 }
 
@@ -235,8 +179,9 @@ void PlatformsBuild(){
         }
     }
 
-    buf1[2 * (HEIGHT / 3) - 1 ][WIDTH-(WIDTH/5)].type = wall;
     buf1[2 * (HEIGHT / 3) - 2 ][WIDTH-(WIDTH/5)].type = wall;
+    buf1[2 * (HEIGHT / 3) - 3 ][WIDTH-(WIDTH/5)].type = wall;
+    buf1[2 * (HEIGHT / 3) - 4 ][WIDTH-(WIDTH/5)].type = wall;
 }
 
 void PlatformsTick(){
@@ -244,7 +189,7 @@ void PlatformsTick(){
         if(frame < 700)
             buf1[0][WIDTH/4].type = sand;
         if(frame > 400 & frame < 800)
-            buf1[0][WIDTH-(WIDTH/7)].type = sand;
+            buf1[0][WIDTH-(WIDTH/6)].type = sand;
     }
     /*
     if(frame % 1 == 0){
@@ -314,7 +259,26 @@ void TestBuild(){
     }
 }
 
-typedef enum {platforms, hourglass, test} worldtype;
+void GlassesBuild(){
+    for(int x = WIDTH/2 - WIDTH/6; x < WIDTH/2 + WIDTH/6; x++ ){
+        buf1[HEIGHT - HEIGHT/4][x].type = wall;
+    }
+    for(int y = HEIGHT - HEIGHT/4 - 2; y > HEIGHT - HEIGHT/2; y--){
+        buf1[y][WIDTH/2 - WIDTH/6 - 1].type = wall;
+        buf1[y][WIDTH/2 + WIDTH/6].type = wall;
+    }
+    for(int x = WIDTH/2 - WIDTH/3; x < WIDTH/2 + WIDTH/3; x++){
+        buf1[HEIGHT - HEIGHT/7][x].type = wall;
+    }
+}
+
+void GlassesTick(){
+    buf1[0][WIDTH/2 - 1].type = sand;
+    buf1[0][WIDTH/2 ].type = sand;
+    buf1[0][WIDTH/2 + 1].type = sand;
+}
+
+typedef enum {platforms, hourglass, test, glasses} worldtype;
 
 int main(int argc, char **argv){
 
@@ -327,6 +291,8 @@ int main(int argc, char **argv){
             type = test;
         }else if(strcmp(argv[1],"platforms") == 0){
             type = platforms;
+        }else if(strcmp(argv[1],"glasses") == 0){
+            type = glasses;
         }
     }
 
@@ -339,6 +305,9 @@ int main(int argc, char **argv){
         break;
         case test:
             TestBuild();
+        break;
+        case glasses:
+            GlassesBuild();
         break;
     }
 
@@ -353,11 +322,14 @@ int main(int argc, char **argv){
             case hourglass:
                 HourglassTick();
             break;
+            case glasses:
+                GlassesTick();
+            break;
         }
 
         frame++;
         Draw();
-        usleep(30000);
+        usleep(40000);
         Process();
         if(1){
             printf("\n%d\n",grainCount);
